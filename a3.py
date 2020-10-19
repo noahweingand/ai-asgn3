@@ -120,7 +120,7 @@ for (i, day) in enumerate(all_days):
     x_weight2 = weights[1][0]
     bias = weights[2][0]
     x = np.linspace(-1, 2, 50)
-    y = (x_weight2 * x**2) + (x_weight * x) + bias
+    y = (x_weight2 * x**2) + (x_weight1 * x) + bias
     graph_results("DAY " + str(i + 1) + " quadratic", day, x, y)
 
 # ARCHITECTURE 3 - x^3
@@ -133,5 +133,5 @@ for (i, day) in enumerate(all_days):
     x_weight3 = weights[2][0]
     bias = weights[3][0]
     x = np.linspace(-1, 2, 50)
-    y = (x_weight3 * x**3) + (x_weight2 * x**2) + (x_weight * x) + bias
+    y = (x_weight3 * x**3) + (x_weight2 * x**2) + (x_weight1 * x) + bias
     graph_results("DAY " + str(i + 1) + " quadratic", day, x, y)
