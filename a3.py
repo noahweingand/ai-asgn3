@@ -27,8 +27,29 @@ def get_input_output(data):
     data[['BIAS']] = 1
     return (data[['HOURS', 'BIAS']].to_numpy(), data[['CONSUMPTION']].to_numpy())
 
-def train_linear(input_arr, alpha, weights):
-    input_arr, output_arr = get_input_output(input_arr)
+def square_or_cube(data, quad=False, cube=False):
+    values = data.values
+    hours = values[:, 0]
+    hours_squared = hours**2
+    consumptions = values[:, 1]
+    min_max_scaler = preprocessing.MinMaxScaler()
+    if quad is True:
+        values = np.column_stack((hours, hours_squared, consumptions))
+        scaled_values = min_max_scaler.fit_transform(values)
+        squared_df = pd.DataFrame(scaled_values)
+        squared_df.columns = ['HOURS', 'QUAD HOURS', 'CONSUMPTION']
+        squared_df[['BIAS']] = 1
+        return (squared_df[['HOURS', 'QUAD HOURS', 'BIAS']].to_numpy(), squared_df[['CONSUMPTION']].to_numpy())
+    if cube is True:
+        hours_cubed = hours**3
+        values = np.column_stack((hours, hours_squared, hours_cubed, consumptions))
+        scaled_values = min_max_scaler.fit_transform(values)
+        cubed_df = pd.DataFrame(scaled_values)
+        cubed_df.columns = ['HOURS', 'QUAD HOURS', 'CUBE HOURS', 'CONSUMPTION']
+        cubed_df[['BIAS']] = 1
+        return (cubed_df[['HOURS', 'QUAD HOURS', 'CUBE HOURS', 'BIAS']].to_numpy(), cubed_df[['CONSUMPTION']].to_numpy())
+
+def train(input_arr, output_arr, alpha, weights):
     total_error = 0
 
     for i in range(iterations):
@@ -80,26 +101,37 @@ all_days = [normalize_data(day_1), normalize_data(day_2), normalize_data(day_3)]
 # ARCHITECTURE 1 - x
 
 for (i, day) in enumerate(all_days):
-    weights = train_linear(day, 0.3, [0.5, 0.5])
+    in_arr, out_arr = get_input_output(day)
+    weights = train(in_arr, out_arr, 0.3, [0.5, 0.5])
     x_weight = weights[0][0]
     bias = weights[1][0]
     x = np.linspace(-1, 2, 50)
     y = (x_weight * x) + bias
     graph_results("DAY " + str(i + 1) + " linear", day, x, y)
 
-# ARCHITECTURE 1 - x
-# x_weight, bias = train_linear(norm_day_1, 0.3, 50, 0.2)
-# x = np.linspace(-1, 2, 50)
-# y = (x_weight * x) + bias
-# graph_results("DAY 1", norm_day_1, x, y)
-# day_2_trained = train_linear(norm_day_2, 0.3, 50, 0.2)
-# day_3_trained = train_linear(norm_day_3, 0.3, 50, 0.2)
-# graph_results("DAY 1", norm_day_1, x, y)
-# graph_results("DAY 2", norm_day_2, day_2_trained)
-# graph_results("DAY 3", norm_day_3, day_3_trained)
-
-
 # ARCHITECTURE 2 - x^2
 
+for (i, day) in enumerate(all_days):
+    in_arr, out_arr = square_or_cube(day, quad=True, cube=False)
+    print("")
+    print(in_arr, out_arr)
+    weights = train(in_arr, out_arr, 0.3, [0.5, 0.5, 0.5])
+    x_weight1 = weights[0][0]
+    x_weight2 = weights[1][0]
+    bias = weights[2][0]
+    x = np.linspace(-1, 2, 50)
+    y = (x_weight2 * x**2) + (x_weight * x) + bias
+    graph_results("DAY " + str(i + 1) + " quadratic", day, x, y)
 
 # ARCHITECTURE 3 - x^3
+
+for (i, day) in enumerate(all_days):
+    in_arr, out_arr = square_or_cube(day, quad=False, cube=True)
+    weights = train(in_arr, out_arr, 0.3, [0.5, 0.5, 0.5, 0.5])
+    x_weight1 = weights[0][0]
+    x_weight2 = weights[1][0]
+    x_weight3 = weights[2][0]
+    bias = weights[3][0]
+    x = np.linspace(-1, 2, 50)
+    y = (x_weight3 * x**3) + (x_weight2 * x**2) + (x_weight * x) + bias
+    graph_results("DAY " + str(i + 1) + " quadratic", day, x, y)
