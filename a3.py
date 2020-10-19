@@ -10,14 +10,15 @@ iterations = 50000
 day_1 = pd.read_csv("./train_data_1.txt", header=None)
 day_2 = pd.read_csv("./train_data_2.txt", header=None)
 day_3 = pd.read_csv("./train_data_3.txt", header=None)
-test_data = pd.read_csv("./test_data_4.txt", header=None)
+day_4 = pd.read_csv("./test_data_4.txt", header=None)
 
-def normalize_data(data):
+def normalize_data(data, day):
     values = data.values
     min_max_scaler = preprocessing.MinMaxScaler()
     scaled_values = min_max_scaler.fit_transform(values)
     scaled_data = pd.DataFrame(scaled_values)
     scaled_data.columns = ['HOURS', 'CONSUMPTION']
+    scaled_data[['DAYS']] = day
 
     return scaled_data
 
@@ -72,18 +73,8 @@ def graph_results(title, dataset, x, y):
     sns.set(rc={'figure.figsize': (10, 8)})
     sns.set_style("whitegrid")
     sns.scatterplot(data=dataset, x='HOURS',
-                    y='CONSUMPTION', linewidth=0)
-    # xf_weight = final_weights[0][0]
-    # f_bias = final_weights[1][0]
-
-    # print("xf_weight: %s" % xf_weight)
-    # print("f_bias: %s" % f_bias)
-
-    # fm = (-1 * xf_weight) / (yf_weight)
-    # fb = (-1 * f_bias) / yf_weight
-    # fx = np.linspace(-1, 2, 50)
-    # fy = (xf_weight * fx) + f_bias
-    plt.plot(x, y, label="Final Line", color='green')
+                    y='CONSUMPTION', hue='DAYS', linewidth=0)
+    plt.plot(x, y, label="Final Line", color='red')
 
     plt.legend(loc='best', borderaxespad=0.)
     plt.title(title)
@@ -91,43 +82,51 @@ def graph_results(title, dataset, x, y):
     plt.xlim(-.1, 1.1)
     plt.show()
 
-
-all_days = [normalize_data(day_1), normalize_data(day_2), normalize_data(day_3)]
-
-# linear_weights
+all_days = pd.concat([normalize_data(day_1, "Day 1"), normalize_data(day_2, "Day 2"), normalize_data(day_3, "Day 3")])
+test_norm = normalize_data(day_4, "Day 4")
 
 # ARCHITECTURE 1 - x
 
-for (i, day) in enumerate(all_days):
-    in_arr, out_arr = get_input_output(day)
-    weights = train(in_arr, out_arr, 0.3, [0.5, 0.5])
-    x_weight = weights[0][0]
-    bias = weights[1][0]
-    x = np.linspace(-1, 2, 50)
-    y = (x_weight * x) + bias
-    graph_results("DAY " + str(i + 1) + " linear", day, x, y)
+in_arr, out_arr = get_input_output(all_days)
+print(in_arr)
+weights = train(in_arr, out_arr, 0.3, [0.5, 0.5])
+x_weight = weights[0][0]
+bias = weights[1][0]
+x = np.linspace(-1, 2, 50)
+y = (x_weight * x) + bias
+# graph_results("DAY " + str(i + 1) + " linear", all_days, x, y)
+graph_results("Days 1, 2, 3 - linear", all_days, x, y)
+
+# ARCHITECTURE 1 - 4th Day Predictions
+graph_results("Day 4: Prediction - linear", test_norm, x, y)
 
 # ARCHITECTURE 2 - x^2
 
-for (i, day) in enumerate(all_days):
-    in_arr, out_arr = square_or_cube(day, quad=True, cube=False)
-    weights = train(in_arr, out_arr, 0.1, [0.5, 0.5, 0.5])
-    x_weight1 = weights[0][0]
-    x_weight2 = weights[1][0]
-    bias = weights[2][0]
-    x = np.linspace(-1, 2, 50)
-    y = (x_weight2 * x**2) + (x_weight1 * x) + bias
-    graph_results("DAY " + str(i + 1) + " quadratic", day, x, y)
+in_arr, out_arr = square_or_cube(all_days, quad=True, cube=False)
+weights_np = np.array([0.5, 0.5, 0.5])
+weights = train(in_arr, out_arr, 0.05, weights_np)
+x_weight1 = weights[0]
+x_weight2 = weights[1]
+bias = weights[2]
+x = np.linspace(-1, 2, 50)
+y = (x_weight2 * x**2) + (x_weight1 * x) + bias
+graph_results("Days 1, 2, 3 - quadratic", all_days, x, y)
+
+# ARCHITECTURE 2 - 4th Day Predictions
+graph_results("Day 4: Prediction - quadratic", test_norm, x, y)
 
 # ARCHITECTURE 3 - x^3
 
-for (i, day) in enumerate(all_days):
-    in_arr, out_arr = square_or_cube(day, quad=False, cube=True)
-    weights = train(in_arr, out_arr, 0.05, [0.5, 0.5, 0.5, 0.5])
-    x_weight1 = weights[0][0]
-    x_weight2 = weights[1][0]
-    x_weight3 = weights[2][0]
-    bias = weights[3][0]
-    x = np.linspace(-1, 2, 50)
-    y = (x_weight3 * x**3) + (x_weight2 * x**2) + (x_weight1 * x) + bias
-    graph_results("DAY " + str( i + 1 ) + " quadratic", day, x, y)
+in_arr, out_arr = square_or_cube(all_days, quad=False, cube=True)
+weights_np = np.array([0.5, 0.5, 0.5, 0.5])
+weights = train(in_arr, out_arr, 0.05, weights_np)
+x_weight1 = weights[0]
+x_weight2 = weights[1]
+x_weight3 = weights[2]
+bias = weights[3]
+x = np.linspace(-1, 2, 50)
+y = (x_weight3 * x**3) + (x_weight2 * x**2) + (x_weight1 * x) + bias
+graph_results("Days 1, 2, 3 - cubic", all_days, x, y)
+
+# ARCHITECTURE 3 - 4th Day Predictions
+graph_results("Day 4: Prediction - cubic", test_norm, x, y)
