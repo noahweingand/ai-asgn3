@@ -5,8 +5,7 @@ import math
 import seaborn as sns
 import numpy as np
 
-iterations = 500
-learn = 0.1
+iterations = 50000
 
 day_1 = pd.read_csv("./train_data_1.txt", header=None)
 day_2 = pd.read_csv("./train_data_2.txt", header=None)
@@ -15,7 +14,6 @@ test_data = pd.read_csv("./test_data_4.txt", header=None)
 
 def normalize_data(data):
     values = data.values
-    print(values)
     min_max_scaler = preprocessing.MinMaxScaler()
     scaled_values = min_max_scaler.fit_transform(values)
     scaled_data = pd.DataFrame(scaled_values)
@@ -113,9 +111,7 @@ for (i, day) in enumerate(all_days):
 
 for (i, day) in enumerate(all_days):
     in_arr, out_arr = square_or_cube(day, quad=True, cube=False)
-    print("")
-    print(in_arr, out_arr)
-    weights = train(in_arr, out_arr, 0.3, [0.5, 0.5, 0.5])
+    weights = train(in_arr, out_arr, 0.1, [0.5, 0.5, 0.5])
     x_weight1 = weights[0][0]
     x_weight2 = weights[1][0]
     bias = weights[2][0]
@@ -127,11 +123,11 @@ for (i, day) in enumerate(all_days):
 
 for (i, day) in enumerate(all_days):
     in_arr, out_arr = square_or_cube(day, quad=False, cube=True)
-    weights = train(in_arr, out_arr, 0.3, [0.5, 0.5, 0.5, 0.5])
+    weights = train(in_arr, out_arr, 0.05, [0.5, 0.5, 0.5, 0.5])
     x_weight1 = weights[0][0]
     x_weight2 = weights[1][0]
     x_weight3 = weights[2][0]
     bias = weights[3][0]
     x = np.linspace(-1, 2, 50)
     y = (x_weight3 * x**3) + (x_weight2 * x**2) + (x_weight1 * x) + bias
-    graph_results("DAY " + str(i + 1) + " quadratic", day, x, y)
+    graph_results("DAY " + str( i + 1 ) + " quadratic", day, x, y)
