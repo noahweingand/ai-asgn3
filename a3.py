@@ -12,13 +12,12 @@ day_2 = pd.read_csv("./train_data_2.txt", header=None)
 day_3 = pd.read_csv("./train_data_3.txt", header=None)
 day_4 = pd.read_csv("./test_data_4.txt", header=None)
 
-def normalize_data(data, day):
+def normalize_data(data):
     values = data.values
     min_max_scaler = preprocessing.MinMaxScaler()
     scaled_values = min_max_scaler.fit_transform(values)
     scaled_data = pd.DataFrame(scaled_values)
     scaled_data.columns = ['HOURS', 'CONSUMPTION']
-    scaled_data[['DAYS']] = day
 
     return scaled_data
 
@@ -31,19 +30,16 @@ def square_or_cube(data, quad=False, cube=False):
     hours = values[:, 0]
     hours_squared = hours**2
     consumptions = values[:, 1]
-    min_max_scaler = preprocessing.MinMaxScaler()
     if quad is True:
         values = np.column_stack((hours, hours_squared, consumptions))
-        scaled_values = min_max_scaler.fit_transform(values)
-        squared_df = pd.DataFrame(scaled_values)
+        squared_df = pd.DataFrame(values)
         squared_df.columns = ['HOURS', 'QUAD HOURS', 'CONSUMPTION']
         squared_df[['BIAS']] = 1
         return (squared_df[['HOURS', 'QUAD HOURS', 'BIAS']].to_numpy(), squared_df[['CONSUMPTION']].to_numpy())
     if cube is True:
         hours_cubed = hours**3
         values = np.column_stack((hours, hours_squared, hours_cubed, consumptions))
-        scaled_values = min_max_scaler.fit_transform(values)
-        cubed_df = pd.DataFrame(scaled_values)
+        cubed_df = pd.DataFrame(values)
         cubed_df.columns = ['HOURS', 'QUAD HOURS', 'CUBE HOURS', 'CONSUMPTION']
         cubed_df[['BIAS']] = 1
         return (cubed_df[['HOURS', 'QUAD HOURS', 'CUBE HOURS', 'BIAS']].to_numpy(), cubed_df[['CONSUMPTION']].to_numpy())
@@ -69,12 +65,15 @@ def train(input_arr, output_arr, alpha, weights):
 
     return weights 
 
-def graph_results(title, dataset, x, y):
+def graph_results(title, dataset, plot_arr):
     sns.set(rc={'figure.figsize': (10, 8)})
     sns.set_style("whitegrid")
     sns.scatterplot(data=dataset, x='HOURS',
-                    y='CONSUMPTION', hue='DAYS', linewidth=0)
-    plt.plot(x, y, label="Final Line", color='red')
+                    y='CONSUMPTION', linewidth=0)
+  
+    for params in plot_arr:
+        x, y, graph_label, graph_color = params
+        plt.plot(x, y, label=graph_label, color=graph_color)
 
     plt.legend(loc='best', borderaxespad=0.)
     plt.title(title)
@@ -82,51 +81,58 @@ def graph_results(title, dataset, x, y):
     plt.xlim(-.1, 1.1)
     plt.show()
 
-all_days = pd.concat([normalize_data(day_1, "Day 1"), normalize_data(day_2, "Day 2"), normalize_data(day_3, "Day 3")])
-test_norm = normalize_data(day_4, "Day 4")
+all_days = [normalize_data(day_1), normalize_data(day_2), normalize_data(day_3)]
+test_norm = normalize_data(day_4)
 
+# the number of samples to plot for the line
+num_samples = 100
+
+# to store all x, y for each architecture
+linear_plot = []
+quad_plot = []
+cubic_plot = []
 # ARCHITECTURE 1 - x
 
-in_arr, out_arr = get_input_output(all_days)
-print(in_arr)
-weights = train(in_arr, out_arr, 0.3, [0.5, 0.5])
-x_weight = weights[0][0]
-bias = weights[1][0]
-x = np.linspace(-1, 2, 50)
-y = (x_weight * x) + bias
-# graph_results("DAY " + str(i + 1) + " linear", all_days, x, y)
-graph_results("Days 1, 2, 3 - linear", all_days, x, y)
-
-# ARCHITECTURE 1 - 4th Day Predictions
-graph_results("Day 4: Prediction - linear", test_norm, x, y)
+for (i, day) in enumerate(all_days):
+    in_arr, out_arr = get_input_output(day)
+    weights = train(in_arr, out_arr, 0.3, [0.5, 0.5])
+    x_weight = weights[0][0]
+    bias = weights[1][0]
+    x = np.linspace(-1, 2, num_samples)
+    y = (x_weight * x) + bias
+    linear_plot.append((x, y, 'linear', 'green'))
 
 # ARCHITECTURE 2 - x^2
 
-in_arr, out_arr = square_or_cube(all_days, quad=True, cube=False)
-weights_np = np.array([0.5, 0.5, 0.5])
-weights = train(in_arr, out_arr, 0.05, weights_np)
-x_weight1 = weights[0]
-x_weight2 = weights[1]
-bias = weights[2]
-x = np.linspace(-1, 2, 50)
-y = (x_weight2 * x**2) + (x_weight1 * x) + bias
-graph_results("Days 1, 2, 3 - quadratic", all_days, x, y)
-
-# ARCHITECTURE 2 - 4th Day Predictions
-graph_results("Day 4: Prediction - quadratic", test_norm, x, y)
+for (i, day) in enumerate(all_days):
+    in_arr, out_arr = square_or_cube(day, quad=True, cube=False)
+    weights = train(in_arr, out_arr, 0.1, [0.5, 0.5, 0.5])
+    x_weight1 = weights[0][0]
+    x_weight2 = weights[1][0]
+    bias = weights[2][0]
+    x = np.linspace(-1, 2, num_samples)
+    y = (x_weight2 * x**2) + (x_weight1 * x) + bias
+    quad_plot.append((x, y, 'quad', 'blue'))
 
 # ARCHITECTURE 3 - x^3
 
-in_arr, out_arr = square_or_cube(all_days, quad=False, cube=True)
-weights_np = np.array([0.5, 0.5, 0.5, 0.5])
-weights = train(in_arr, out_arr, 0.05, weights_np)
-x_weight1 = weights[0]
-x_weight2 = weights[1]
-x_weight3 = weights[2]
-bias = weights[3]
-x = np.linspace(-1, 2, 50)
-y = (x_weight3 * x**3) + (x_weight2 * x**2) + (x_weight1 * x) + bias
-graph_results("Days 1, 2, 3 - cubic", all_days, x, y)
+for (i, day) in enumerate(all_days):
+    in_arr, out_arr = square_or_cube(day, quad=False, cube=True)
+    weights = train(in_arr, out_arr, 0.05, [0.5, 0.5, 0.5, 0.5])
+    x_weight1 = weights[0][0]
+    x_weight2 = weights[1][0]
+    x_weight3 = weights[2][0]
+    bias = weights[3][0]
+    x = np.linspace(-1, 2, num_samples)
+    y = (x_weight3 * x**3) + (x_weight2 * x**2) + (x_weight1 * x) + bias
+    cubic_plot.append((x, y, 'cubic', 'red'))
 
-# ARCHITECTURE 3 - 4th Day Predictions
-graph_results("Day 4: Prediction - cubic", test_norm, x, y)
+# Training
+graph_results("DAY 1", all_days[0], [linear_plot[0], quad_plot[0], cubic_plot[0]])
+graph_results("DAY 2", all_days[1], [linear_plot[1], quad_plot[1], cubic_plot[1]])
+graph_results("DAY 3", all_days[2], [linear_plot[2], quad_plot[2], cubic_plot[2]])
+
+# Testing
+graph_results("DAY 4 linear", test_norm, [linear_plot[0]])
+graph_results("DAY 4 quad", test_norm, [quad_plot[0]])
+graph_results("DAY 4 cubic", test_norm, [cubic_plot[0]])
