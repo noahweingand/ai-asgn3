@@ -63,7 +63,7 @@ def train(input_arr, output_arr, alpha, weights):
 
         train_error = total_error
 
-    return weights 
+    return weights, train_error
 
 def graph_results(title, dataset, plot_arr):
     sns.set(rc={'figure.figsize': (10, 8)})
@@ -84,6 +84,42 @@ def graph_results(title, dataset, plot_arr):
 all_days = [normalize_data(day_1), normalize_data(day_2), normalize_data(day_3)]
 test_norm = normalize_data(day_4)
 
+def get_test_error(dataset, weights, archtype):
+    input_x = dataset[['HOURS']].to_numpy()
+    actual = dataset[["CONSUMPTION"]].to_numpy()
+    predictions = []
+    if(archtype == "linear"):
+        x_weight = weights[0]
+        bias = weights[1]
+        for i in range(len(input_x)):
+            x = input_x[i]
+            pred = (x_weight * x) + bias
+            predictions.append(pred)
+    if(archtype == "quadratic"):
+        x_weight1 = weights[0]
+        x_weight2 = weights[1]
+        bias = weights[2]
+        for i in range(len(input_x)):
+            x = input_x[i]
+            pred = (x_weight2 * x**2) + (x_weight1 * x) + bias
+            predictions.append(pred)
+    if(archtype == "cubic"):
+        x_weight1 = weights[0]
+        x_weight2 = weights[1]
+        x_weight3 = weights[2]
+        bias = weights[3]
+        for i in range(len(input_x)):
+            x = input_x[i]
+            pred = (x_weight3 * x**3) + (x_weight2 * x**2) + (x_weight1 * x) + bias
+            predictions.append(pred)
+
+    test_error = 0
+    for i in range(len(actual)):
+        error = actual[i] - predictions[i]
+        test_error = test_error + math.pow(error, 2)
+
+    return test_error
+
 # the number of samples to plot for the line
 num_samples = 100
 
@@ -91,34 +127,47 @@ num_samples = 100
 linear_plot = []
 quad_plot = []
 cubic_plot = []
+
+linear_weights = []
+quad_weights = []
+cubic_weights = []
+
+#training error
+linear_te = []
+quad_te = []
+cubic_te = []
 # ARCHITECTURE 1 - x
 
 for (i, day) in enumerate(all_days):
     in_arr, out_arr = get_input_output(day)
-    weights = train(in_arr, out_arr, 0.3, [0.5, 0.5])
+    weights, error = train(in_arr, out_arr, 0.3, [0.5, 0.5])
     x_weight = weights[0][0]
     bias = weights[1][0]
     x = np.linspace(-1, 2, num_samples)
     y = (x_weight * x) + bias
     linear_plot.append((x, y, 'linear', 'green'))
+    linear_weights.append((x_weight, bias))
+    linear_te.append(error)
 
 # ARCHITECTURE 2 - x^2
 
 for (i, day) in enumerate(all_days):
     in_arr, out_arr = square_or_cube(day, quad=True, cube=False)
-    weights = train(in_arr, out_arr, 0.1, [0.5, 0.5, 0.5])
+    weights, error = train(in_arr, out_arr, 0.1, [0.5, 0.5, 0.5])
     x_weight1 = weights[0][0]
     x_weight2 = weights[1][0]
     bias = weights[2][0]
     x = np.linspace(-1, 2, num_samples)
     y = (x_weight2 * x**2) + (x_weight1 * x) + bias
     quad_plot.append((x, y, 'quad', 'blue'))
+    quad_weights.append((x_weight1, x_weight2, bias))
+    quad_te.append(error)
 
 # ARCHITECTURE 3 - x^3
 
 for (i, day) in enumerate(all_days):
     in_arr, out_arr = square_or_cube(day, quad=False, cube=True)
-    weights = train(in_arr, out_arr, 0.05, [0.5, 0.5, 0.5, 0.5])
+    weights, error = train(in_arr, out_arr, 0.05, [0.5, 0.5, 0.5, 0.5])
     x_weight1 = weights[0][0]
     x_weight2 = weights[1][0]
     x_weight3 = weights[2][0]
@@ -126,13 +175,74 @@ for (i, day) in enumerate(all_days):
     x = np.linspace(-1, 2, num_samples)
     y = (x_weight3 * x**3) + (x_weight2 * x**2) + (x_weight1 * x) + bias
     cubic_plot.append((x, y, 'cubic', 'red'))
+    cubic_weights.append((x_weight1, x_weight2, x_weight3, bias))
+    cubic_te.append(error)
 
-# Training
+#Training Error
+for i in range(3):
+    print("[TRAIN ERROR: DAY %d Linear]\t%f" %(i+1, linear_te[i]))
+    print("[TRAIN ERROR: DAY %d Quadratic]\t%f" %(i+1, quad_te[i]))
+    print("[TRAIN ERROR: DAY %d Cubic]\t%f" %(i+1, cubic_te[i]))
+
+# Training Plots
 graph_results("DAY 1", all_days[0], [linear_plot[0], quad_plot[0], cubic_plot[0]])
 graph_results("DAY 2", all_days[1], [linear_plot[1], quad_plot[1], cubic_plot[1]])
 graph_results("DAY 3", all_days[2], [linear_plot[2], quad_plot[2], cubic_plot[2]])
 
+#average linear weights
+avg_linear_weights = np.divide(np.add(linear_weights[0], np.add(linear_weights[1], linear_weights[2])), np.array([3,3]))
+#avgerage quadratic weights
+avg_quad_weights = np.divide(np.add(quad_weights[0], np.add(quad_weights[1], quad_weights[2])), np.array([3,3,3]))
+#average cubic weights
+avg_cubic_weights = np.divide(np.add(cubic_weights[0], np.add(cubic_weights[1], cubic_weights[2])), np.array([3,3,3,3]))
+
+
+linear_avg_plot = []
+quad_avg_plot = []
+cubic_avg_plot = []
+#linear plot using average weights
+x_weight = avg_linear_weights[0]
+bias = avg_linear_weights[1]
+x = np.linspace(-1, 2, num_samples)
+y = (x_weight * x) + bias
+linear_avg_plot.append((x, y, 'linear', 'green'))
+
+#quad plot using average weights
+x_weight1 = avg_quad_weights[0]
+x_weight2 = avg_quad_weights[1]
+bias = avg_quad_weights[2]
+x = np.linspace(-1, 2, num_samples)
+y = (x_weight2 * x**2) + (x_weight1 * x) + bias
+quad_avg_plot.append((x, y, 'quad', 'blue'))
+
+
+#cubic plot using average weights 
+x_weight1 = avg_cubic_weights[0]
+x_weight2 = avg_cubic_weights[1]
+x_weight3 = avg_cubic_weights[2]
+bias = avg_cubic_weights[3]
+x = np.linspace(-1, 2, num_samples)
+y = (x_weight3 * x**3) + (x_weight2 * x**2) + (x_weight1 * x) + bias
+cubic_avg_plot.append((x, y, 'cubic', 'red'))
+
+
+#Testing Error
+# linear_test_error = get_test_error(test_norm, linear_weights[0], 'linear')
+# quad_test_error = get_test_error(test_norm, quad_weights[0], 'quadratic')
+# cubic_test_error = get_test_error(test_norm, cubic_weights[0], 'cubic')
+linear_test_error = get_test_error(test_norm, avg_linear_weights, 'linear')
+quad_test_error = get_test_error(test_norm, avg_quad_weights, 'quadratic')
+cubic_test_error = get_test_error(test_norm, avg_cubic_weights, 'cubic')
+
+print("[TEST ERROR Linear]\t%f" %(linear_test_error))
+print("[TEST ERROR Quadratic]\t%f" %(quad_test_error))
+print("[TEST ERROR Cubic]\t%f" %(cubic_test_error))
+
 # Testing
-graph_results("DAY 4 linear", test_norm, [linear_plot[0]])
-graph_results("DAY 4 quad", test_norm, [quad_plot[0]])
-graph_results("DAY 4 cubic", test_norm, [cubic_plot[0]])
+# graph_results("DAY 4 linear", test_norm, [linear_plot[0]])
+# graph_results("DAY 4 quad", test_norm, [quad_plot[0]])
+# graph_results("DAY 4 cubic", test_norm, [cubic_plot[0]])
+graph_results("DAY 4 linear", test_norm, linear_avg_plot)
+graph_results("DAY 4 quad", test_norm, quad_avg_plot)
+graph_results("DAY 4 cubic", test_norm, cubic_avg_plot)
+
